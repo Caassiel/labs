@@ -1,36 +1,51 @@
 #include <iostream>
-
+#include <ctime>
+#include <cstdlib>
+#include <cstdint>
+#include <chrono>
+#include <random>
 using namespace std;
+using namespace chrono;
 
 class Set{
 private:
     static const int t = 1000;
-    static const int b = 64;
-    unsigned int* A = new unsigned int[t];
+    static const int w = 6;
+    static const int b = 1 << w;
+    int* A = new int[t];
 public:
 
 Set(){
 for(int i = 0; i < t; i++) A[i] = 0;
 }
 
+void Generate(){
+static mt19937_64 rng(random_device{}());
+uniform_int_distribution<uint64_t> dist(0, UINT_MAX);
+
+    for (int i = 0; i < t; i++) {
+        A[i] = dist(rng);
+    }
+}
+
+
 void Search(int N){
     int j = N & (b - 1);
-    int i = N &  ~(b - 1);
+    int i = N >> w;
 
-    if (A[i] & (1 << j)) cout << "element number " << N << " is in the set.\n";
-    else cout << "element number " << N << " is not in the set.\n";
+    if (A[i] & (1 << j));
 }
 
 void Insert(int N){
     int j = N & (b - 1);
-    int i = N &  ~(b - 1);
+    int i = N >> w;
 
     A[i] |= (1 << j);
 }
 
 void Delete(int N){
     int j = N & (b - 1);
-    int i = N &  ~(b - 1);
+    int i = N >> w;
 
     A[i] &= ~(1 << j);
 }
@@ -87,56 +102,38 @@ delete[] A;
 
 int main()
 {
+srand(time(0));
 
+auto time1 = nanoseconds::zero();
+auto time2 = nanoseconds::zero();
+
+int N = 2000;
+
+for (int i = 0; i < N; i++){
 Set X;
-X.Insert(73);
-X.Insert(40);
+X.Generate();
+auto Start = high_resolution_clock::now();
+X.Search(1000);
+auto End = high_resolution_clock::now();
+auto duration = duration_cast<nanoseconds>(End - Start);
 
+time1 = time1 + duration;
+}
+
+for (int i = 0; i < N; i++){
+Set X;
 Set Y;
-Y.Insert(40);
+X.Generate();
+Y.Generate();
+auto Start = high_resolution_clock::now();
+X.SymDifference(Y);
+auto End = high_resolution_clock::now();
+auto duration = duration_cast<nanoseconds>(End - Start);
 
-Set K = X.Union(Y);
+time2 = time2 + duration;
+}
 
-K.Search(73);
-K.Search(40);
-K.Search(13);
-
-cout << "\n";
-Set L = X.SetDifference(Y);
-
-L.Search(73);
-L.Search(40);
-L.Search(13);
-
-cout << "\n";
-Set M = Y.SetDifference(X);
-M.Search(73);
-M.Search(40);
-M.Search(13);
-
-cout << "\n";
-Set N = X.Intersection(Y);
-
-N.Search(73);
-N.Search(40);
-N.Search(13);
-
-cout << "\n";
-Set O = X.SymDifference(Y);
-
-O.Search(73);
-O.Search(40);
-O.Search(13);
-
-cout << "\n";
-
-X.IsSubsetOf(Y);
-Y.IsSubsetOf(X);
-
-cout << "\n";
-
-Y.Clear();
-Y.Search(40);
-
+cout << "Average time per search: " << time1.count()/N << " nanoseconds. \n";
+cout << "Average time per operation: " << time2.count()/N << " nanoseconds. \n";
 return 0;
 }
