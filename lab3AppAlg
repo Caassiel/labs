@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <list>
 #include <ctime>
 #include <chrono>
@@ -6,13 +7,13 @@
 using namespace std;
 using namespace chrono;
 
-class Graph{
+class GraphAdj{
 private:
     int V;
     list<int> *A;
 
 public:
-Graph(int v){
+GraphAdj(int v){
     V = v;
     A = new list<int>[v];
 }
@@ -44,7 +45,6 @@ cout << i + 1 << ": ";
   }
 }
 
-
 void BFS(int s){
 
 bool *visited = new bool[V];
@@ -67,7 +67,7 @@ while(!Queue.empty()){
         }
     }
 }
-
+delete[] visited;
 }
 
 void DFS(int s, bool *visited){
@@ -88,23 +88,120 @@ for (int i = 0; i < V; i++){
 }
 
 DFS(s, visited);
+delete[] visited;
 }
 
 };
 
 
+class GraphMatrix{
+
+protected:
+    vector<vector<int>> A;
+
+public:
+int n;
+GraphMatrix(int n) : A(n, vector<int>(n, 0)) {};
+
+void AddVertex(){
+int N = A.size();
+A.push_back(vector<int>(N + 1, 0));
+for (int i = 0; i < N; i++){
+    A[i].push_back(0);
+  }
+}
+
+void DeleteVertex(){
+A.pop_back();
+int N = A.size();
+for (int i = 0; i < N + 1; i++){
+    A[i].pop_back();
+  }
+}
+
+void AddEdge(int i, int j){
+A[i][j] = 1;
+};
+void DeleteEdge(int i, int j){
+A[i][j] = 0;
+};
+
+void GenerateRandomGraph(double p){
+static mt19937 rng(random_device{}());
+uniform_real_distribution<double> dist(0.0, 1.0);
+int N = A.size();
+
+for (int i = 0; i < N; i++){
+     for (int j = 0; j < N; j++){
+          if (dist(rng) < p) {
+              AddEdge(i, j);
+          }
+     }
+  }
+}
+
+void PrintGraph(){
+int N = A.size();
+for (int i = 0; i < N; i++){
+    for (int j = 0; j < N; j++){
+        cout << A[i][j] << " ";
+    }
+    cout << "\n";
+  }
+}
+
+
+void BFS(int s) {
+int N = A.size();
+vector<bool> visited(N, false);
+list<int> Queue;
+visited[s] = true;
+Queue.push_back(s);
+
+while (!Queue.empty()) {
+    s = Queue.front();
+    Queue.pop_front();
+
+    for (int i = 0; i < N; ++i) {
+        if (A[s][i] && !visited[i]) {
+            visited[i] = true;
+            Queue.push_back(i);
+        }
+    }
+}
+
+}
+
+void DFS(int s, vector<bool>& visited) {
+    visited[s] = true;
+    for (int i = 0; i < (int)A.size(); ++i) {
+        if (A[s][i] && !visited[i]) {
+            DFS(i, visited);
+        }
+    }
+}
+
+void DFSrecursive(int s) {
+    vector<bool> visited(A.size(), false);
+    DFS(s, visited);
+}
+
+};
 
 int main()
 {
 srand(time(0));
 auto time1 = nanoseconds::zero();
 auto time2 = nanoseconds::zero();
-int N = 1000;
-int V = 10;
-float p = 0.5;
+auto time3 = nanoseconds::zero();
+auto time4 = nanoseconds::zero();
+
+int N = 10;
+int V = 10000;
+float p = 0.1;
 
 for (int i = 0; i < N; i++){
-Graph G(V);
+GraphAdj G(V);
 G.GenerateRandomGraph(p);
 
 auto Start1 = high_resolution_clock::now();
@@ -121,9 +218,32 @@ auto duration2 = duration_cast<nanoseconds>(End2 - Start2);
 time2 = time2 + duration2;
 }
 
+for (int i = 0; i < N; i++){
+GraphMatrix g(V);
+g.GenerateRandomGraph(p);
+
+
+auto Start3 = high_resolution_clock::now();
+g.BFS(2);
+auto End3 = high_resolution_clock::now();
+auto duration3 = duration_cast<nanoseconds>(End3 - Start3);
+time3 = time3 + duration3;
+
+auto Start4 = high_resolution_clock::now();
+g.DFSrecursive(2);
+auto End4 = high_resolution_clock::now();
+auto duration4 = duration_cast<nanoseconds>(End4 - Start4);
+
+time4 = time4 + duration4;
+}
+
+cout << "Adj List representation\n___________________________________________\n";
 cout << "Average time per BFS: " << time1.count()/N << " nanoseconds.\n";
 cout << "Average time per DFS (recursive): " << time2.count()/N << " nanoseconds.\n";
-//G.PrintGraph();
+cout << "Matrix representation\n___________________________________________\n";
+cout << "Average time per BFS: " << time3.count()/N << " nanoseconds.\n";
+cout << "Average time per DFS (recursive): " << time4.count()/N << " nanoseconds.\n";
 
 return 0;
 }
+
