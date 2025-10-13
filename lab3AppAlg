@@ -91,6 +91,9 @@ DFS(s, visited);
 delete[] visited;
 }
 
+~GraphAdj(){
+delete[] A;
+}
 };
 
 
@@ -246,4 +249,5 @@ cout << "Average time per DFS (recursive): " << time4.count()/N << " nanoseconds
 
 return 0;
 }
+
 
