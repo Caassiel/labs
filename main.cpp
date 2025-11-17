@@ -1,0 +1,191 @@
+#include <iostream>
+using namespace std;
+
+class Vector;
+
+class Matrix {
+private:
+    int n;
+    double **A;
+
+public:
+    Matrix(int n) : n(n) {
+        A = new double*[n];
+        for (int i = 0; i < n; i++) {
+            A[i] = new double[n];
+            for (int j = 0; j < n; j++) A[i][j] = 0.0;
+        }
+    }
+
+    int Size() const { return n; }
+    double* operator[](int i) { return A[i]; }
+    const double* operator[](int i) const { return A[i]; }
+
+    Matrix Multiplication(const Matrix &B) const {
+        Matrix C(n);
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                double sum = 0;
+                for (int k = 0; k < n; k++) sum += A[i][k] * B.A[k][j];
+                C[i][j] = sum;
+            }
+        }
+        return C;
+    }
+
+    Vector Multiply(const Vector &v) const;
+
+    Matrix Subtraction(const Matrix &B) const {
+        Matrix C(n);
+        for (int i = 0; i < n; i++){
+            for (int j = 0; j < n; j++) C[i][j] = A[i][j] - B.A[i][j];
+            }
+        return C;
+    }
+
+    Matrix Addition(const Matrix &B) const {
+        Matrix C(n);
+        for (int i = 0; i < n; i++){
+            for (int j = 0; j < n; j++) C[i][j] = A[i][j] + B.A[i][j];
+            }
+        return C;
+    }
+
+    void Print() const {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) cout << A[i][j] << " ";
+            cout << "\n";
+        }
+    }
+
+    ~Matrix() {
+        for (int i = 0; i < n; i++) delete[] A[i];
+        delete[] A;
+    }
+};
+
+class Vector {
+private:
+    int n;
+    double *v;
+
+public:
+    Vector(int n) : n(n) {
+        v = new double[n];
+        for (int i = 0; i < n; i++) v[i] = 0.0;
+    }
+
+    int Size() const { return n; }
+    double& operator[](int i) { return v[i]; }
+    const double& operator[](int i) const { return v[i]; }
+
+    void Print() const {
+        for (int i = 0; i < n; i++) cout << v[i] << "\n";
+    }
+
+    ~Vector() {
+        delete[] v;
+    }
+};
+
+Vector Matrix::Multiply(const Vector &B) const {
+    Vector C(n);
+    for (int i = 0; i < n; i++) {
+        double sum = 0;
+        for (int j = 0; j < n; j++) sum += A[i][j] * B[j];
+        C[i] = sum;
+    }
+    return C;
+}
+
+bool LUDecompose(Matrix &A, int *p) {
+    int n = A.Size();
+
+    for (int i = 0; i < n; i++) p[i] = i;
+
+    for (int k = 0; k < n; k++) {
+        int pivot = k;
+        double maxVal = (A[pivot][k] >= 0 ? A[pivot][k] : -A[pivot][k]);
+        for (int i = k + 1; i < n; i++) {
+            double val = (A[i][k] >= 0 ? A[i][k] : -A[i][k]);
+            if (val > maxVal) {
+                maxVal = val;
+                pivot = i;
+            }
+        }
+
+        if (A[pivot][k] == 0.0) return false;
+
+        if (pivot != k) {
+            int temp = p[k];
+            p[k] = p[pivot];
+            p[pivot] = temp;
+        }
+
+        for (int i = k + 1; i < n; i++) {
+            A[p[i]][k] /= A[p[k]][k];
+            for (int j = k + 1; j < n; j++) A[p[i]][j] -= A[p[i]][k] * A[p[k]][j];
+        }
+    }
+    return true;
+}
+
+Vector LUSolve(const Matrix &A, const int *p, const Vector &b) {
+    int n = A.Size();
+    Vector y(n), x(n);
+
+    for (int i = 0; i < n; i++) {
+        double sum = b[p[i]];
+        for (int j = 0; j < i; j++) sum -= A[p[i]][j] * y[j];
+        y[i] = sum;
+    }
+
+    for (int i = n - 1; i >= 0; i--) {
+        double sum = y[i];
+        for (int j = i + 1; j < n; j++) sum -= A[p[i]][j] * x[j];
+        x[i] = sum / A[p[i]][i];
+    }
+
+    return x;
+}
+
+int main()
+{
+int N = 6;
+Matrix M(N);
+Vector b(N);
+int *p = new int[N];
+
+srand(time(0));
+
+for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+        double val = (rand() % 2001 - 1000) / 100.0;
+        M[i][j] = val;
+    }
+}
+
+for (int i = 0; i < N; i++) {
+    b[i] = (rand() % 2001 - 1000) / 100.0;
+}
+
+cout << "Matrix A:\n";
+M.Print();
+cout << "\nVector b:\n";
+for (int i = 0; i < N; i++) cout << b[i] << " ";
+cout << "\n\n";
+
+if (!LUDecompose(M, p)) {
+    cout << "Matrix is singular.\n";
+    delete[] p;
+    return 1;
+}
+
+Vector x = LUSolve(M, p, b);
+
+cout << "Solution x:\n";
+for (int i = 0; i < N; i++) cout << x[i] << "\n";
+delete[] p;
+
+return 0;
+}
