@@ -1,0 +1,32 @@
+import numpy as np
+from numpy import pi
+from qiskit import QuantumCircuit
+
+def QFT_manual(qc, n):
+    for i in range(n):
+        qc.h(i)        #Hadamard
+
+        for j in range(i + 1, n):
+            angle = np.pi / (2 ** (j - i))
+            qc.cp(angle, j, i)  #R_n, R_n-1 ... R 2
+
+    for i in range(n // 2):
+        qc.swap(i, n - i - 1)
+
+def QFT_inverse_manual(qc, n):
+    for i in range(n // 2):
+        qc.swap(i, n - i - 1)
+
+    for i in reversed(range(n)):
+        for j in reversed(range(i+1, n)):
+            angle = -np.pi / (2 ** (j - i))
+            qc.cp(angle, j, i)
+        qc.h(i) #everything in reverse
+
+
+qc = QuantumCircuit(3)
+qc.x(0)  
+
+QFT_manual(qc, n=3)
+fig = qc.draw('mpl')
+fig.show()
