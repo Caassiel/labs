@@ -1,0 +1,63 @@
+from qiskit import QuantumCircuit, transpile
+from qiskit_aer import Aer
+from qiskit.visualization import plot_histogram
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def diffusion(n):
+    qc = QuantumCircuit(n)
+    qc.h(range(n)) # Apply transformation |s> -> |00..0> (H-gates)
+    qc.x(range(n)) # Apply transformation |00..0> -> |11..1> (X-gates)
+
+    # Do multi-controlled-Z gate
+    qc.h(n-1)
+    qc.mcx(list(range(n-1)), n-1) # multi-controlled-toffoli
+    qc.h(n-1)
+
+    qc.x(range(n)) # Apply transformation |11..1> -> |00..0>
+    qc.h(range(n)) # Apply transformation |00..0> -> |s>
+
+    U_s = qc.to_gate()
+    U_s.name = "U$_s$"
+    return U_s
+
+def oracle(n):
+    qc = QuantumCircuit(n)
+
+    qc.h(n-1)
+    qc.mcx(list(range(n-1)), n-1)
+    qc.h(n-1)
+
+    O_s = qc.to_gate()
+    O_s.name = "O$_s$"
+    return O_s
+
+
+def grover(n):
+    qc = QuantumCircuit(n, n)
+
+    qc.h(range(n))
+    r = int(np.floor(np.pi/4 * np.sqrt(2**n)))
+
+    for _ in range(r):
+        qc.compose(oracle(n), inplace=True)
+        qc.compose(diffusion(n), inplace=True)
+
+    qc.measure(range(n), range(n))
+    return qc
+
+n = 3
+qc = grover(n)
+
+backend = Aer.get_backend("qasm_simulator")
+tqc = transpile(qc, backend)
+result = backend.run(tqc, shots=2048).result()
+counts = result.get_counts()
+
+fig = qc.draw('mpl')
+fig.show()
+
+print(counts)
+plot_histogram(counts)
+plt.show()
