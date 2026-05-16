@@ -4,24 +4,6 @@ from qiskit.visualization import plot_histogram
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def diffusion(n):
-    qc = QuantumCircuit(n)
-    qc.h(range(n)) # Apply transformation |s> -> |00..0> (H-gates)
-    qc.x(range(n)) # Apply transformation |00..0> -> |11..1> (X-gates)
-
-    # Do multi-controlled-Z gate
-    qc.h(n-1)
-    qc.mcx(list(range(n-1)), n-1) # multi-controlled-toffoli
-    qc.h(n-1)
-
-    qc.x(range(n)) # Apply transformation |11..1> -> |00..0>
-    qc.h(range(n)) # Apply transformation |00..0> -> |s>
-
-    U_s = qc.to_gate()
-    U_s.name = "U$_s$"
-    return U_s
-
 def oracle(n):
     qc = QuantumCircuit(n)
 
@@ -32,6 +14,21 @@ def oracle(n):
     O_s = qc.to_gate()
     O_s.name = "O$_s$"
     return O_s
+
+def diffusion(n):
+    qc = QuantumCircuit(n)
+    qc.h(range(n)) # Apply transformation |s> -> |00..0> (H-gates)
+    qc.x(range(n)) # Apply transformation |00..0> -> |11..1> (X-gates)
+
+    oracle(n)
+
+    qc.x(range(n)) # Apply transformation |11..1> -> |00..0>
+    qc.h(range(n)) # Apply transformation |00..0> -> |s>
+
+    U_s = qc.to_gate()
+    U_s.name = "U$_s$"
+    return U_s
+
 
 
 def grover(n):
@@ -47,17 +44,111 @@ def grover(n):
     qc.measure(range(n), range(n))
     return qc
 
-n = 3
-qc = grover(n)
+qc = grover(3)
 
 backend = Aer.get_backend("qasm_simulator")
 tqc = transpile(qc, backend)
-result = backend.run(tqc, shots=2048).result()
+result = backend.run(tqc, shots = 2).result()
 counts = result.get_counts()
 
-fig = qc.draw('mpl')
-fig.show()
+shots2 = sum(counts.values())
 
-print(counts)
-plot_histogram(counts)
+probs = {
+    state: count/shots2
+    for state, count in counts.items()
+}
+
+print(probs)
+plot_histogram(probs)
 plt.show()
+
+
+import time
+
+#ns = []
+#times = []
+#
+#backend = Aer.get_backend("qasm_simulator")
+
+# for n in range(2, 20):
+#     start = time.perf_counter()
+#
+#     qc = grover(n)
+#     tqc = transpile(qc, backend)
+#
+#     result = backend.run(tqc, shots=1024).result()
+#
+#     end = time.perf_counter()
+#
+#     elapsed = end - start
+#
+#     ns.append(n)
+#     times.append(elapsed)
+#
+#     print(f"n = {n}, time = {elapsed:.6f} sec")
+#
+# plt.figure(figsize=(8,5))
+#
+# plt.plot(ns, times, marker='o')
+#
+# plt.xlabel("Number of qubits n")
+# plt.ylabel("Execution time (seconds)")
+# plt.title("Grover simulator runtime vs n")
+#
+# plt.grid(True)
+#
+# plt.show()
+#
+
+#Multiple solutions
+
+def oracle_many(n, marked_states):
+
+    qc = QuantumCircuit(n)
+
+    for state in marked_states:
+
+        # apply X on 0-bits
+        for i, bit in enumerate(state):
+            if bit == '0':
+                qc.x(i)
+
+        # multi-controlled Z
+        qc.h(n-1)
+        qc.mcx(list(range(n-1)), n-1)
+        qc.h(n-1)
+
+        # undo X gates
+        for i, bit in enumerate(state):
+            if bit == '0':
+                qc.x(i)
+
+    return qc
+
+def grover_many(n, marked_states):
+
+    qc = QuantumCircuit(n, n)
+
+    qc.h(range(n))
+    N = 2**n
+    k = len(marked_states)
+    r = int(np.floor((np.pi/4) * np.sqrt(N/k)))
+
+    for _ in range(r):
+        qc.compose(oracle_many(n, marked_states), inplace=True)
+        qc.compose(diffusion(n), inplace=True)
+
+    qc.measure(range(n), range(n))
+
+    return qc
+
+# marked = ["10111", "11001"]
+# qc = grover_many(5, marked)
+#
+# backend_many = Aer.get_backend("qasm_simulator")
+# tqc = transpile(qc, backend_many)
+# result = backend_many.run(tqc, shots=2048).result()
+# counts = result.get_counts()
+# print(counts)
+# plot_histogram(counts)
+# plt.show()
